@@ -1,0 +1,480 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0">
+<title>Demo of minizip-asm.js - encrypt and decrypt existing zip file</title>
+<script src="../lib/minizip-asm.min.js"></script>
+<script src="operative.js"></script>
+<script src="trianglify.min.js"></script>
+<link rel="stylesheet" href="bootstrap.min.css">
+<script src="jquery.min.js"></script>
+<link rel="stylesheet" href="file_input_example.css">
+<script src="jquery.ui.widget.min.js"></script>
+<script src="jquery.iframe-transport.min.js"></script>
+<script src="jquery.fileupload.min.js"></script>
+<script src="FileSaver.min.js"></script>
+<script type="text/javascript" src="dropins.js" id="dropboxjs" data-app-key="5kasvniagci2z46"></script>
+
+</head>
+<style>
+html, body {
+	margin: 0;
+	padding: 0;
+}
+#canvas {
+	z-index: -1;
+	position: fixed;
+}
+#panel {
+	opacity: 1;
+}
+.bigicon {
+	font-size: 50px;
+}
+#loadingpage, #loadingpage div {
+	display: none;
+}
+::-webkit-input-placeholder {
+   text-align: center;
+}
+:-moz-placeholder { /* Firefox 18- */
+   text-align: center;  
+}
+::-moz-placeholder {  /* Firefox 19+ */
+   text-align: center;  
+}
+:-ms-input-placeholder {  
+   text-align: center; 
+}
+</style>
+<body>
+<div id="canvas"></div>
+<label for="uploadfile" class="fake_file_input">
+  <input type="file" name="files[]" id="uploadfile" multiple />
+</label>
+<br>
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12">
+      <div id="panel" class="panel panel-primary">
+        <div class="panel-heading">
+          <h3 class="panel-title">minizip-asm.js - encrypt and decrypt existing zip file</h3>
+        </div>
+        <div class="panel-body">
+          <div id="startpage">
+            <h1 class="text-center">Welcome</h1>
+            <h3 class="text-center">Enter a password and hit the button to start!</h3>
+            <br>
+            <div class="row">
+              <div class="col-xs-3"></div>
+                <div class="col-xs-6">
+                  <input type="text" class="form-control" placeholder="My Password To:" id="password">
+                </div>
+              <div class="col-xs-3"></div>
+            </div>
+            <br>
+            <div class="text-center">
+              <button id="encrypt" type="button" class="btn btn-default btn-lg text-center"><span class="bigicon glyphicon glyphicon-ok-circle"></span><br>Encrypt</button>
+              <button id="decrypt" type="button" class="btn btn-default btn-lg text-center"><span class="bigicon glyphicon glyphicon-remove-circle"></span><br>Decrypt</button>
+            </div>
+            <br>
+            <div class="text-center">
+              <input type="checkbox" id="inwebworker">
+              <span> in WebWorker</span>
+            </div>
+          </div>
+          <div id="loadingpage">
+            <h1 class="text-center">Loading...</h1>
+            <h4 class="text-center"></h4>
+            <p class="text-center"></p>
+            <br>
+            <div class="text-center">
+              <button id="home" type="button" class="btn btn-default btn-lg text-center"><span class="bigicon glyphicon glyphicon-home"></span><br>Back Home</button>
+              <button id="downloadfile" type="button" class="btn btn-default btn-lg text-center"><span class="bigicon glyphicon glyphicon-download-alt"></span><br>Download Zip</button>
+              <button id="savetodropbox" type="button" class="btn btn-default btn-lg text-center"><span class="bigicon glyphicon glyphicon-cloud"></span><br>Save To Dropbox</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+    makeBG();
+    makePanelHeight();
+    
+    $(window).on("resize", function() {
+    	
+    	makeBG();
+    	
+    });
+    
+    $("#panel").on("resize", function() {
+    	
+    	makePanelHeight();
+    	
+    });
+    
+    function makePanelHeight() {
+    	
+    	var panel = $("#panel");
+    	
+    }
+    
+    function makeBG() {
+    	
+    	var pattern = Trianglify({
+    		width: window.innerWidth,
+    		height: window.innerHeight
+    	});
+    	
+    	var canvas = document.getElementById("canvas");
+    	
+    	canvas.innerHTML = "";
+    	
+    	canvas.appendChild(pattern.canvas());
+    	
+    }
+    
+    var currentPage = "#startpage";
+    
+    $("#uploadfile").fileupload({
+    	
+    	autoUpload: false,
+    	
+    	change: change
+    	
+    });
+        
+    function change(e, data) {
+    	
+    	if (currentPage == "#startpage") {
+    		
+    		$("#startpage").hide();
+    		
+    		$("#loadingpage").show();
+    		
+    		$("#loadingpage div").hide();
+    		
+    		var file = data.files[0];
+    		
+    		if (!$("#inwebworker").is(':checked')) {
+    			
+    			if (todo == "#encrypt") {
+    				
+    				encrypt(file, password, cb);
+    				
+    			} else {
+    				
+    				decrypt(file, password, cb);
+    				
+    			}
+    			
+    			return;
+    			
+    		}
+    		
+    		if (todo == "#encrypt") {
+    			
+    			encryptO(file, password, cb);
+    			
+    		} else {
+    			
+    			decryptO(file, password, cb);
+    			
+    		}
+    		
+    	}
+    	
+    }
+    
+    var encryptO = operative(function(file, password, cb) {
+    	
+    	var fr = new FileReader();
+    	
+    	fr.onload = function(event) {
+    		
+    		try {
+    			
+    			var zip = new Minizip(new Uint8Array(event.target.result));
+    			
+    			var newZip = new Minizip();
+    			
+    			zip.list({encoding: "buffer"}).forEach(function(o) {
+    				
+    				newZip.append(o.filepath, zip.extract(o.filepath), {password: password});
+    				
+    				cb("Processing: " + o.filepath.toString());
+    				
+    			});
+    			
+    			var file = new File([newZip.zip()], "file.zip", { type: 'application/octet-binary' });
+    			
+    			cb(null, null, file);
+    			
+    		} catch (e) {
+    			
+    			cb(null, e);
+    			
+    		}
+    		
+    	}
+    	
+    	fr.readAsArrayBuffer(file);
+    	
+    }, ["../lib/minizip-asm.min.js"]);
+    
+    var decryptO = operative(function(file, password, cb) {
+    	
+    	var fr = new FileReader();
+    	
+    	fr.onload = function(event) {
+    		
+    		try {
+    			
+    			var zip = new Minizip(new Uint8Array(event.target.result));
+    			
+    			var newZip = new Minizip();
+    			
+    			zip.list({encoding: "buffer"}).forEach(function(o) {
+    				
+    				newZip.append(o.filepath, zip.extract(o.filepath, {password: password}));
+    				
+    				cb("Processing: " + o.filepath.toString());
+    				
+    			});
+    			
+    			var file = new File([newZip.zip()], "file.zip", { type: 'application/octet-binary' });
+    			
+    			cb(null, null, file);
+    			
+    		} catch (e) {
+    			
+    			cb(null, e);
+    			
+    		}
+    		
+    	}
+    	
+    	fr.readAsArrayBuffer(file);
+    	
+    }, ["../lib/minizip-asm.min.js"]);
+    
+    function encrypt(file, password, cb) {
+    	
+    	var fr = new FileReader();
+    	
+    	fr.onload = function(event) {
+    		
+    		try {
+    			
+    			var zip = new Minizip(new Uint8Array(event.target.result));
+    			
+    			var newZip = new Minizip();
+    			
+    			zip.list({encoding: "buffer"}).forEach(function(o) {
+    				
+    				newZip.append(o.filepath, zip.extract(o.filepath), {password: password});
+    				
+    				cb("Processing: " + o.filepath.toString());
+    				
+    			});
+    			
+    			var file = new File([newZip.zip()], "file.zip", { type: 'application/octet-binary' });
+    			
+    			cb(null, null, file);
+    			
+    		} catch (e) {
+    			
+    			cb(null, e);
+    			
+    		}
+    		
+    	}
+    	
+    	fr.readAsArrayBuffer(file);
+    	
+    }
+    
+    function decrypt(file, password, cb) {
+    	
+    	var fr = new FileReader();
+    	
+    	fr.onload = function(event) {
+    		
+    		try {
+    			
+    			var zip = new Minizip(new Uint8Array(event.target.result));
+    			
+    			var newZip = new Minizip();
+    			
+    			zip.list({encoding: "buffer"}).forEach(function(o) {
+    				
+    				newZip.append(o.filepath, zip.extract(o.filepath, {password: password}));
+    				
+    				cb("Processing: " + o.filepath.toString());
+    				
+    			});
+    			
+    			var file = new File([newZip.zip()], "file.zip", { type: 'application/octet-binary' });
+    			
+    			cb(null, null, file);
+    			
+    		} catch (e) {
+    			
+    			cb(null, e);
+    			
+    		}
+    		
+    	}
+    	
+    	fr.readAsArrayBuffer(file);
+    	
+    }
+    
+    var savedata;
+    
+    var url;
+    
+    function cb(m, e, data) {
+    	
+    	if (m) {
+    		
+    		var log = $("#loadingpage h4");
+    		
+    		log.append("<p>" + m + "</p>");
+    		
+    		if (log.children().length > 8) {
+    			
+    			log.find(':first-child').remove();
+    			
+    		}
+    		
+    		return;
+    		
+    	}
+    	
+    	if (!data && !e) {
+    		
+    		return;
+    		
+    	}
+    	
+    	if (e) {
+    		
+    		$("#loadingpage h1").text("Error");
+    		
+    		$("#loadingpage p").text(e);
+    		
+    	} else {
+    		
+    		$("#loadingpage h1").text("Complete");
+    		
+    		savedata = data;
+    		
+    	}
+    	
+    	var fr = new FileReader();
+    	
+    	fr.onload = function(event) {
+    		
+    		url = event.target.result;
+    		
+    		$("#loadingpage div").show();
+    		
+    	}
+    	
+    	fr.readAsDataURL(savedata);
+    	
+    }
+    
+    $("#home").on("click", function() {
+    	
+    	$("#startpage").show();
+    	
+    	$("#loadingpage").hide();
+    	
+    	$("#password").val("");
+    	
+    	$("#loadingpage h1").text("Loading...");
+    	
+    	$("#loadingpage h4").empty();
+    	
+    	$("#loadingpage p").empty();
+    	
+    	savedata = undefined;
+    	
+    });
+    
+    $("#downloadfile").on("click", function() {
+    	
+    	saveAs(savedata);
+    	
+    });
+    
+    $("#savetodropbox").on("click", function() {
+    	
+    	$("#loadingpage h1").text("Uploading...");
+    	
+    	Dropbox.save(url, savedata.name, {
+    		
+    		success: function() {
+    			
+    			$("#loadingpage h1").text("Success");
+    			
+    		},
+    		
+		cancel: function() {
+    			
+			$("#loadingpage h1").text("Cancel");
+    			
+		},
+    		
+    		error : function(e) {
+    			
+    			$("#loadingpage h1").text("Error");
+    			
+    			$("#loadingpage p").text(e);
+    			
+    		}
+    		
+    	});
+    	
+    });
+    
+    var todo = "#encrypt";
+    
+    var password = "";
+    
+    $("#encrypt").on("click", function() {
+    	
+    	todo = "#encrypt";
+    	
+    	password = $("#password").val();
+    	
+    	$("#uploadfile").click();
+    	
+    });
+    
+    $("#decrypt").on("click", function() {
+    	
+    	todo = "#decrypt";
+    	
+    	password = $("#password").val();
+    	
+    	$("#uploadfile").click();
+    	
+    });
+    
+</script>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-90256410-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+</html>

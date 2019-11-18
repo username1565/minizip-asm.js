@@ -1,0 +1,13 @@
+<script src="../../lib/minizip-asm.min.js"></script>
+
+<script>
+
+var fs = require("fs");
+
+var text = new Buffer("Abc~~~");
+var mz = new Minizip();
+
+mz.append("haha/abc.txt", text, {password: "~~~"});
+fs.writeFileSync("abc.zip", new Buffer(mz.zip()));
+
+</script>

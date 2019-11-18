@@ -1,0 +1,89 @@
+<html>
+<!-- this file can working locally, without NodeJS, require() and Buffer()-->
+<meta charset="utf-8">
+
+
+	<a id="download_encrypted_zip" href="" download="" style="display;none;">Donload encrypted zip (password "~~~")</a>
+	<br>
+	<a id="download_decrypted_zip" href="" download="" style="display;none;">Donload decrypted zip (no need password "test")</a>
+
+
+</html>
+
+<script src="../../lib/minizip-asm.min.js"></script>
+<script>
+
+//	test creation zip-file, encrypted by password "~~~"
+var text = "Abc~~~"; 		//text, inside ./haha/abc.txt
+var text_bytes = text.split('').map(function(c) { return c.charCodeAt(); });
+console.log("text_bytes", text_bytes);
+
+var mz = new Minizip();
+mz.append("haha/abc.txt", text_bytes, {password: "~~~"});		//add this to zip-archive, in the folder "haha", and encrypt by password "~~~"
+
+var blob = new Blob([mz.zip()]);						//create blob with zip-archive
+var url = window.URL.createObjectURL(blob);				//create url-object
+download_encrypted_zip.href = url;						//add url-object in the href of "a"-element
+download_encrypted_zip.download = "abc.zip";			//append filename
+download_encrypted_zip.style.display = "inline-block;";	//show "a"-element
+
+
+
+
+
+//	test decrypt a zip-file, which was been encrypted by password:
+//		array_with_bytes of local file: test_text.zip		password: "123"
+var array_with_bytes = [
+//Byte:	0	1	2	3	4	5	6	7	8	9	A	B	C	D	E	F		Offsets:
+		"0x50",	"0x4B",	"0x03",	"0x04",	"0x0A",	"0x00",	"0x09",	"0x00",		"0x00",	"0x00",	"0x38",	"0x18",	"0x72",	"0x4F",	"0xD2",	"0x63",		// 0x00000000 - 0x0000000F
+		"0x48",	"0x88",	"0x0F",	"0x00",	"0x00",	"0x00",	"0x03",	"0x00",		"0x00",	"0x00",	"0x0D",	"0x00",	"0x00",	"0x00",	"0x74",	"0x65",		// 0x00000010 - 0x0000001F
+		"0x73",	"0x74",	"0x5F",	"0x74",	"0x65",	"0x78",	"0x74",	"0x2E",		"0x74",	"0x78",	"0x74",	"0xA7",	"0xC3",	"0xCC",	"0xDA",	"0xC0",		// 0x00000020 - 0x0000002F
+		"0xAE",	"0xE9",	"0x3B",	"0xD6",	"0xD3",	"0x68",	"0x95",	"0x1A",		"0xED",	"0xD4",	"0x50",	"0x4B",	"0x07",	"0x08",	"0xD2",	"0x63",		// 0x00000030 - 0x0000003F
+		"0x48",	"0x88",	"0x0F",	"0x00",	"0x00",	"0x00",	"0x03",	"0x00",		"0x00",	"0x00",	"0x50",	"0x4B",	"0x01",	"0x02",	"0x14",	"0x00",		// 0x00000040 - 0x0000004F
+		"0x0A",	"0x00",	"0x09",	"0x00",	"0x00",	"0x00",	"0x38",	"0x18",		"0x72",	"0x4F",	"0xD2",	"0x63",	"0x48",	"0x88",	"0x0F",	"0x00",		// 0x00000050 - 0x0000005F
+		"0x00",	"0x00",	"0x03",	"0x00",	"0x00",	"0x00",	"0x0D",	"0x00",		"0x00",	"0x00",	"0x00",	"0x00",	"0x00",	"0x00",	"0x01",	"0x00",		// 0x00000060 - 0x0000006F
+		"0x20",	"0x00",	"0x00",	"0x00",	"0x00",	"0x00",	"0x00",	"0x00",		"0x74",	"0x65",	"0x73",	"0x74",	"0x5F",	"0x74",	"0x65",	"0x78",		// 0x00000070 - 0x0000007F
+		"0x74",	"0x2E",	"0x74",	"0x78",	"0x74",	"0x50",	"0x4B",	"0x05",		"0x06",	"0x00",	"0x00",	"0x00",	"0x00",	"0x01",	"0x00",	"0x01",		// 0x00000080 - 0x0000008F
+		"0x00",	"0x3B",	"0x00",	"0x00",	"0x00",	"0x4A",	"0x00",	"0x00",		"0x00",	"0x00",	"0x00"		// 0x00000090 - 0x0000009A
+];
+
+var bytes_array = array_with_bytes.map(function(o){return parseInt(o, 16);});	//parse text as bytes
+console.log("bytes_array", bytes_array);
+var typedarray = new Uint8Array(bytes_array);
+console.log("typedarray", typedarray, "arraybuffer - typedarray.buffer", typedarray.buffer);
+
+//decrypt and add to download-link
+try {
+	var zip = new Minizip(typedarray);
+	var newZip = new Minizip();
+
+	zip.list({encoding: "buffer"}).forEach(function(o) {
+		newZip.append(o.filepath, zip.extract(o.filepath, {password: "test"}));
+		console.log("Extract... Processing: " + o.filepath.toString());    				
+	});
+	
+	var blob = false;
+	
+	try {
+		// File
+		var file = new File([newZip.zip()], "test_text.zip", { type: 'application/octet-binary' });
+		console.log("file.name: ", file.name)
+		download_decrypted_zip.download = file.name;
+		download_decrypted_zip.href = URL.createObjectURL(file);
+		download_decrypted_zip.style.display = "inline-block;";
+	}
+	catch (e){
+		console.log(e)
+		// Blob
+		var file = new Blob([newZip.zip()], { type: 'application/octet-binary' });
+		var url = window.URL.createObjectURL(file);
+		download_decrypted_zip.href = url;
+		download_decrypted_zip.download = "test_text.zip";
+		download_decrypted_zip.style.display = "inline-block;";
+	}
+	console.log(file);
+} catch (e) {
+	console.log(e);
+}
+
+</script>
