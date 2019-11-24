@@ -50,7 +50,7 @@ fs.writeFileSync("abc.zip", new Buffer(mz.zip()));
 
 * @`options` \<optional>
 
-  * @`encoding` {"utf8"|"buffer"} \<default="utf8"> - Since the filepath may not encode in utf8. It will be handy to have an ArrayBuffer to do detection on encoding.
+  * @`encoding` {"utf8"|"buffer"|"windows-1251"|"Windows-1251"|"cp866"|"pathways_and_filenames-encoding-is-cp866_password-encoding-is-windows-1251"} \<default="utf8"> - Since the filepath may not encode in utf8. It will be handy to have an ArrayBuffer to do detection on encoding.
 
 * @ Return an `Array`. Something like this:
     
